@@ -5,9 +5,6 @@ import matplotlib.pylab as plt
 from matplotlib.patches import Rectangle
 import sys
 
-isq2pi = 1/(2*np.pi)**(0.5)
-
-
 def histogram(on_data,off_data,bin_master):
     fig = plt.figure(figsize=(20,6))
     plt.rcParams['xtick.labelsize'] = 16
@@ -20,8 +17,6 @@ def histogram(on_data,off_data,bin_master):
     fig.text(0.504, 0.02, 'Flux Density in On-Pulse Window', ha='center', va='center', rotation='horizontal', size=22)
     plt.legend(prop={'size': 20},loc='upper left')
     plt.grid()
-
-    #fig.suptitle('Histogram of Flux Density in On- and Off-Windows', fontsize=30)
 
     return fig
 
@@ -99,152 +94,93 @@ def waterfall_and_average(data,mean,windows):
     ax2.add_patch(Rectangle((windows[0],-0.1),(windows[1]-windows[0]),1.2,facecolor='green',alpha = 0.1, zorder = 39))
     plt.vlines(windows[2],-0.1,1.1,linestyles='dashed',lw=4,color='darkorange')
     plt.vlines(windows[3],-0.1,1.1,linestyles='dashed',lw=4,color='darkorange')
-    ax2.add_patch(Rectangle((windows[2],-0.1),(windows[3]-windows[2]),1.2,facecolor='darkorange',alpha = 0.1, zorder = 39))                                                                    
-
-    plt.vlines(1,-0.1,1.1,linestyles='dashed',lw=4,color='darkorange')
-    plt.vlines(windows[3]-windows[2],-0.1,1.1,linestyles='dashed',lw=4,color='darkorange')
-    ax2.add_patch(Rectangle((0,-0.1),(windows[3]-windows[2]),1.2,facecolor='darkorange',alpha = 0.1, zorder = 39))
-
+    ax2.add_patch(Rectangle((windows[2],-0.1),(windows[3]-windows[2]),1.2,facecolor='darkorange',alpha = 0.1, zorder = 39))
 
     fig.subplots_adjust(hspace=0.0)
     fig.subplots_adjust(wspace=0.0)
 
-    #fig.suptitle('All Profiles and Average Profile', fontsize=30)
-    return fig,ax2;
+    return fig, ax2
     
 def logL_lognormal_conv(params, data, mean_off_window_nulls, std_off_window_nulls):
-    
-    """likelihood"""
-    
-    # do the convolution
+    """
+    Log-likelihood function for the MCMC sampler.
 
-    #print(f'DATA!{data}')
-    #print(f'PARAMS at top: {params}')
-    
+    Convolves the model (lognormal on-pulse distribution + Gaussian null distribution)
+    and evaluates it at each data point. Returns -1e50 if parameters are out of bounds
+    or the model produces NaNs.
+
+    params: [Noff, u, sig]
+        Noff - number of nulls
+        u    - mu of the lognormal (on-pulse) distribution
+        sig  - sigma of the lognormal (on-pulse) distribution
+    data: sorted array of on-window flux densities
+    mean_off_window_nulls: mean of the off-window flux (characterises the null distribution)
+    std_off_window_nulls:  std of the off-window flux (characterises the null distribution)
+    """
+
     total_function_x, total_function_y, _, _ = convolve(params, data, mean_off_window_nulls, std_off_window_nulls)
 
-    #if np.any(np.isnan(total_function_x)) or np.any(np.isnan(total_function_y)):
-    #    print("!!!!!!!!!!!!!!NaN detected in total_function_x or total_function_y")
-    #    sys.exit()
-    
-    #print(f'TOTAL FUNCTION X{total_function_x}')
-    
-    #print(f'size of total func x and y {total_function_x.shape} {total_function_y.shape}')
-    #print(f'y array {total_function_y}')
-    
-    N = len(data)    
-    
-    # now put the data values into the function
-    
-    likelihood = []
+    N = len(data)
 
     is_nan = np.isnan(total_function_y)
-    #print(f'IS NAN??? {np.any(is_nan)}')
-    
-    #print(f'PARAMS further down: {params}')
 
-    #if np.any(np.isnan(total_function_x)) or np.any(np.isnan(total_function_y)):
-    #    print("!!NaN detected in total_function_x or total_function_y")
-    #    sys.exit()
-
-    
     if params[0] > (N*1.0) or params[0] < 0 or params[1] < 0 or params[1] > 10.0 or params[2] < 0 or params[2] > 2.0 or np.any(is_nan):
-    # I used (N*0.9) because the sampler sometimes tends to simplify and make NF=1 when it's clearly not. I'm keeping it just as N for now and see how it goes.  
         sum_out = -1e50
-    
+
     else:
-
-        ###function_y_is_neg = 0        
-        
+        likelihood = []
         for each in data:
-            #print(f'eACCCCCCHHHH {each}')
-            difference_array = np.absolute(total_function_x-each)
-            #print(f'diffference array {difference_array}')
-            index = difference_array.argmin()
-            #print(f'INDEXXXXX {index}')
-            ###if total_function_y[index] > 0:
+            index = np.absolute(total_function_x - each).argmin()
             likelihood.append(total_function_y[index])
-            ###else:
-                # I added this because if the total_function_y is not >0 then I think the LogL and the sum_out will yeild NaN
-                # I should probably stop the total_function_y from being negative in the first place.
-            ###    function_y_is_neg = 1
-            ###    likelihood.append(total_function_y[index])
 
-        ###if function_y_is_neg == 0:
-
-        #print(f'likelihood!!!! {likelihood}')
-        
         logLs = np.log(likelihood)
-
-        #print(f'logLs!!!! {logLs}')
-        
         sum_out = np.sum(logLs)
 
-        ###elif function_y_is_neg == 1:
-
-        ###    sum_out = -1e50
-
-        #print(f'SUM OUT!!!!!: {sum_out}')
-        
     return sum_out
 
-def convolve(params, data,  mean_off_window_nulls, std_off_window_nulls):
+def convolve(params, data, mean_off_window_nulls, std_off_window_nulls):
     """
-    Convolves the lognormal function with the noise in the data.
-    
-    params = 
-    
-    data = 
-    
-    mean_off_windows_nulls = 
-    
-    std_off_window_nulls = 
-    """
-        
-    Noff, u, sig = params
-    
-    N = len(data)    
+    Build the total model flux distribution by convolving the on-pulse lognormal
+    with the Gaussian noise, then adding the null (Gaussian) component.
 
-    # the resolution of the of the functions
-    
+    params: [Noff, u, sig]
+        Noff - number of nulls
+        u    - mu of the lognormal (on-pulse) distribution
+        sig  - sigma of the lognormal (on-pulse) distribution
+    data: sorted array of on-window flux densities
+    mean_off_window_nulls: mean of the off-window flux (sets null distribution centre)
+    std_off_window_nulls:  std of the off-window flux (sets null distribution width)
+
+    Returns (total_function_x, total_function_y, null_func_y, conv_func_y)
+    """
+
+    Noff, u, sig = params
+
+    N = len(data)
+
     function_resolution = 0.1
-    
-    # the range of the functions
-    
+
     if abs(np.min(data)) > abs(np.max(data)):
         set_range = abs(np.min(data))
     else:
         set_range = abs(np.max(data))
 
-    #print(f'set range is: {set_range}')    
-        
-    #function_resolution = (set_range*2.0)/100.0
-    #function_resolution = 0.1
-    
-    # the off on and conv x-range
-    
-    off_func_x = np.arange(-set_range,set_range,function_resolution)
-    null_func_x = np.arange(-set_range,set_range,function_resolution)
-    on_func_x = np.arange(function_resolution,set_range,function_resolution)
+    off_func_x = np.arange(-set_range, set_range, function_resolution)
+    null_func_x = np.arange(-set_range, set_range, function_resolution)
+    on_func_x = np.arange(function_resolution, set_range, function_resolution)
 
-    conv_func_x = np.arange(-set_range,(2.0*set_range)-function_resolution,function_resolution)
-    
-    # the y values after the function has acted
-    
-    
-    func_arg_off = -0.5 * ((off_func_x-mean_off_window_nulls)/std_off_window_nulls)**2
-    off_func_y_for_conv = 1*np.exp(func_arg_off)
-    #off_func_y_for_conv = np.ones((func_arg_off.shape[0]))
-    
-    func_norm_null = Noff/std_off_window_nulls
-    func_arg_null = -0.5 * ((null_func_x-mean_off_window_nulls)/std_off_window_nulls)**2
-    #func_arg_null = -0.5 * ((null_func_x-uoff)/std_off_window_nulls)**2
-    func_norm_on = (1/on_func_x) * (N-Noff)/sig
-    func_arg_on = -0.5 * ((ln(on_func_x)-u)/sig)**2
-    
-    
-    null_func_y = func_norm_null*np.exp(func_arg_null)
-    on_func_y_for_conv = func_norm_on*np.exp(func_arg_on)
+    conv_func_x = np.arange(-set_range, (2.0*set_range)-function_resolution, function_resolution)
+
+    func_arg_off = -0.5 * ((off_func_x - mean_off_window_nulls) / std_off_window_nulls)**2
+    off_func_y_for_conv = 1 * np.exp(func_arg_off)
+
+    func_norm_null = Noff / std_off_window_nulls
+    func_arg_null = -0.5 * ((null_func_x - mean_off_window_nulls) / std_off_window_nulls)**2
+    func_norm_on = (1/on_func_x) * (N-Noff) / sig
+    func_arg_on = -0.5 * ((ln(on_func_x) - u) / sig)**2
+
+    null_func_y = func_norm_null * np.exp(func_arg_null)
+    on_func_y_for_conv = func_norm_on * np.exp(func_arg_on)
     
     # do the convolution
 

@@ -4,14 +4,11 @@
 ### PULSAR NULLING FRACTION CALCULATOR
 ### 
 
-import sys
 import numpy as np
 import matplotlib.pylab as plt
 import glob
 import os
 import argparse
-from matplotlib import gridspec
-from scipy.optimize import curve_fit
 from scipy import signal
 import emcee
 from corner import corner
@@ -36,8 +33,6 @@ args = parser.parse_args()
 
 p_name = args.pulsar
 
-### 
-
 output_dir = f'{args.outdir}{p_name}'
 
 if not os.path.exists(args.outdir):
@@ -58,7 +53,6 @@ max_nulls = []
 all_nulls = []
 all_non_nulls = []
 n_prof_list = []
-exception_info = []
 
 ### NUMBER OF OBSERVATIONS
 
@@ -77,8 +71,6 @@ no_bins = args.bins
 
 off_window_begin = 0
 off_window_end = int(on_window_end - on_window_begin)
-#off_window_begin = on_window_begin + int(no_bins/4.)
-#off_window_end = on_window_end + int(no_bins/4.)
 
 pre_pulse_window_begin = on_window_begin - (on_window_end - on_window_begin)
 pre_pulse_window_end = on_window_begin
@@ -124,16 +116,6 @@ for file in os.listdir(datadir):
         n_prof = float(data.shape[0])
         n_prof_list.append(n_prof)
 
-        ### JUST FOR J1048!!!
-
-        if p_name == 'J1048-5832':
-            nudge = 0
-            for i in range(data.shape[0]):
-                if i % 170 == 0 and i != 0:
-                    print(f'i = {i} and now nudging by {nudge}')
-                    nudge+=1
-                data[i,:] = np.roll(data[i,:], -1*nudge)
-        
         ### FIND MEAN PROFILE                                                                                                                                                                                         
         mean = np.zeros((data.shape[1]))
         for b in range(no_bins):
@@ -177,12 +159,6 @@ for file in os.listdir(datadir):
         peak_window_begin = on_window_begin
         peak_window_end = on_window_end
 
-        ### FOR 1745 MINOR and 1825 WE NEED TO USE THE MAIN PEAK FOR S/N PROXY
-
-        # 1745
-        peak_window_begin = 114
-        peak_window_end = 139
-
         nff.waterfall_and_average(data,mean,windows);
         plt.vlines(pre_pulse_window_begin,0.0,1.0,'k',ls='--') # COMMENT OUT IF YOU DON'T NEED TO REMOVE SOME ANOMOLOUS PRE_PULSE FLUX
         plt.vlines(pre_pulse_window_end,0.0,1.0,'k',ls='--') # COMMENT OUT IF YOU DON'T NEED TO REMOVE SOME ANOMOLOUS PRE_PULSE FLUX
@@ -215,7 +191,6 @@ for file in os.listdir(datadir):
         flux_density = []
         for i in range(data.shape[0]):
             flux_density.append(np.sum(data[i,on_window_begin:on_window_end] - pre_pulse_baseline))
-            #flux_density.append(np.sum(data[i,on_window_begin:on_window_end]))
 
         norm_flux_density = [j/1.0 for j in flux_density]
 
@@ -239,10 +214,9 @@ for file in os.listdir(datadir):
         new_data_off = np.array(new_data_on_and_off_unzipped[1])
         std_new_data_off = np.array(new_data_on_and_off_unzipped[2])
 
-        mean_of_nulls = np.mean(new_data_off) # THIS IS REALLY THE MEAN OF OFF PULSES
+        mean_of_nulls = np.mean(new_data_off)
         print(f'mean of nulls: {mean_of_nulls}')
-        median_of_off_window = np.median(new_data_off) # THIS IS REALLY THE MEAN OF OFF PULSES
-        std_of_nulls = np.std(new_data_off) # this is the std of the summed off data. Used as a proxy for the std of the summed null data i.e. the null hist width on final plot.
+        std_of_nulls = np.std(new_data_off)
 
         null_bar = mean_of_nulls + std_of_nulls
         pulse_bar = mean_of_nulls + (2.0*std_of_nulls)
@@ -250,10 +224,8 @@ for file in os.listdir(datadir):
         print(f'The pulse bar is set at {pulse_bar}')
                        
             
-        ### LOOK AT THE UNSORTED FLUX DENSITY IN THE ON WINDOW:
-        ### THE HORIZONTAL LINES ARE
-        ###
-                        
+        ### PLOT FLUX DENSITY OF EACH PULSE WITH NULL/PULSE THRESHOLD LINES
+
         fig = plt.figure(figsize=(20,6))
         resamp = signal.resample(norm_flux_density,num=(int(n_prof/1)))
         plt.plot(resamp,'kx')
@@ -411,9 +383,7 @@ for file in os.listdir(datadir):
 
         ### STARTING POINTS FOR THE SAMPLER
 
-        print(f'!!Start from wang {start_from_wang_nf}')
-        pTrue = [Nexp, estimated_mu, estimated_sigma]            
-        print(f'!!Nexp:{Nexp}, Est mu:{estimated_mu}, Est sigma:{estimated_sigma}')
+        pTrue = [Nexp, estimated_mu, estimated_sigma]
         
         ### SAMPLER SET UP
         
@@ -423,10 +393,6 @@ for file in os.listdir(datadir):
         n_sample_steps = 1000
             
         p0 = [pTrue + np.random.randn(ndim)*[pTrue[0]/1000., pTrue[1]/20., pTrue[2]/20.] for i in range(nwalkers)]
-
-        print(f'!!!p0: {p0}')
-        print(f'!!!mean of nulls: {mean_of_nulls}')
-        print(f'!!!std of nulls: {std_of_nulls}')
 
         sampler = emcee.EnsembleSampler(nwalkers, ndim, nff.logL_lognormal_conv, args=[new_data, mean_of_nulls, std_of_nulls])
         
@@ -470,10 +436,7 @@ for file in os.listdir(datadir):
         nf_lower_unc.append((med-low)/n_prof)
         
         ### PLOT HISTOGRAM OF THE FLUX DENSITY DATA WITH THE BEST FITTING FUNCTION
-        
-        x = np.arange(-1.0,5.0,0.01)
-        x_log = np.arange(0.0,5.0,0.01)
-        
+
         total_function_x, total_function_y, null_func, on_func = nff.convolve([med_of_no_nulls, med_of_on_mean, med_of_on_std], new_data, mean_of_nulls, std_of_nulls)
         
         if total_function_x.shape[0] == total_function_y.shape[0]:
