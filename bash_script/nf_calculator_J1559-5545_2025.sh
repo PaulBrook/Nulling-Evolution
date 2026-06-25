@@ -7,19 +7,22 @@
 #SBATCH --account=vecchioa-gw-pta
 #SBATCH --qos=bbdefault
 #SBATCH --time=03-00:00:00
-##SBATCH --array=1
 #SBATCH --open-mode=truncate
-#SBATCH --output=/rds/projects/v/vecchioa-gw-pta/brookp/clean/nulling_evolution/slurm_output/test250626.o
+#SBATCH --output=%x_%j.o
 
 module purge
 module load bluebear
 module load Miniconda3/4.9.2
 
 eval "$(${EBROOTMINICONDA3}/bin/conda shell.bash hook)"
-
-#conda activate /rds/homes/b/brookp/.conda/envs/enterprise
 conda activate IPTA_Env
 
-cd /rds/projects/v/vecchioa-gw-pta/brookp/clean/nulling_evolution/clean_nf_evolution/python_code
+BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-python -u /rds/projects/v/vecchioa-gw-pta/brookp/clean/nulling_evolution/clean_nf_evolution/python_code/nf_calculator.py -pulsar J1559-5545 -fb 114 -lb 139 -outdir /rds/projects/v/vecchioa-gw-pta/brookp/clean/nulling_evolution/clean_nf_evolution/pulsar_results/ -datadir /rds/projects/v/vecchioa-gw-pta/brookp/clean/nulling_evolution/clean_nf_evolution/pulsar_data/ -bins 512
+python -u "${BASE_DIR}/python_code/nf_calculator.py" \
+    -pulsar J1559-5545 \
+    -fb 114 \
+    -lb 139 \
+    -outdir "${BASE_DIR}/pulsar_results/" \
+    -datadir "${BASE_DIR}/pulsar_data/" \
+    -bins 512

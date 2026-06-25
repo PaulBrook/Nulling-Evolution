@@ -1,0 +1,5 @@
+numpy==1.26.4
+scipy==1.13.1
+matplotlib==3.9.3
+emcee==3.1.6
+corner==2.2.3
