@@ -60,20 +60,15 @@ datadir = f'{args.datadir}{p_name}/'
 file_tot = len(glob.glob("{}*.sp.asc".format(datadir)))
 print('There are {} observations in this data set.'.format(file_tot))
 
-### DEFINING THE ON-PULSE WINDOW, OFF PULSE WINDOW AND A PRE-PULSE WINDOW
-### THE PRE-PULSE WINDOW IS DEFINED BECAUSE SOMETIMES THIS BASELINE WAS RAISED IN THE OBSERVATIONS I WAS PROCESSING
-### AND SO THIS RAISED BASELINE NEEDED TO BE REMOVED
+### DEFINING THE ON-PULSE WINDOW AND OFF PULSE WINDOW
 
 on_window_begin = args.fb
 on_window_end = args.lb
 
 no_bins = args.bins
 
-off_window_begin = 0
-off_window_end = int(on_window_end - on_window_begin)
-
-pre_pulse_window_begin = on_window_begin - (on_window_end - on_window_begin)
-pre_pulse_window_end = on_window_begin
+off_window_begin = on_window_begin + int(no_bins/4.)
+off_window_end = on_window_end + int(no_bins/4.)
 
 windows = [on_window_begin,on_window_end,off_window_begin,off_window_end]
 
@@ -139,15 +134,6 @@ for file in os.listdir(datadir):
 
         data = data - off_baseline
 
-        ### BASELINE OF THE PRE-PULSE WINDOW
-            
-        all_pre_pulse_bins = []
-
-        for i in range(int(data.shape[0])):
-            all_pre_pulse_bins.append(data[i,pre_pulse_window_begin:pre_pulse_window_end])
-        pre_pulse_baseline = np.mean(all_pre_pulse_bins)
-        print('Subtracting a baseline (from the on pulses) of', pre_pulse_baseline)
-            
         ### FIND MEAN PROFILE                                                                                                                                                                                         
         mean = np.zeros((data.shape[1]))
         for b in range(no_bins):
@@ -160,8 +146,6 @@ for file in os.listdir(datadir):
         peak_window_end = on_window_end
 
         nff.waterfall_and_average(data,mean,windows);
-        plt.vlines(pre_pulse_window_begin,0.0,1.0,'k',ls='--') # COMMENT OUT IF YOU DON'T NEED TO REMOVE SOME ANOMOLOUS PRE_PULSE FLUX
-        plt.vlines(pre_pulse_window_end,0.0,1.0,'k',ls='--') # COMMENT OUT IF YOU DON'T NEED TO REMOVE SOME ANOMOLOUS PRE_PULSE FLUX
         plt.savefig(f'{output_dir}/{file}_waterfall_mean.png')
         plt.close()
 
@@ -190,7 +174,7 @@ for file in os.listdir(datadir):
 
         flux_density = []
         for i in range(data.shape[0]):
-            flux_density.append(np.sum(data[i,on_window_begin:on_window_end] - pre_pulse_baseline))
+            flux_density.append(np.sum(data[i,on_window_begin:on_window_end]))
 
         norm_flux_density = [j/1.0 for j in flux_density]
 

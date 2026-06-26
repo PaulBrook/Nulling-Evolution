@@ -64,6 +64,10 @@ Each observation is a two-column ASCII file (`*.sp.asc`) with a comment header o
 
 Data files should be placed in `pulsar_data/<pulsar_name>/`.
 
+## Reproducibility
+
+The Wang method is fully deterministic. The Bayesian method uses MCMC (`emcee`) and is stochastic: walker starting positions are randomly perturbed and the sampler draws different chains each run, so the Bayesian nulling fraction and its uncertainties will vary slightly between runs. With the default settings (100 burn-in steps, 1000 sample steps, 10 walkers) this variation is typically small, but to get exactly reproducible results you can add `np.random.seed(<integer>)` near the top of `nf_calculator.py` before the MCMC section.
+
 ## Outputs
 
 For each observation file, the following plots are saved:
@@ -79,5 +83,18 @@ For each observation file, the following plots are saved:
 | `*_corner_plot.png` | MCMC posterior corner plot |
 
 Summary results across all observations are saved to:
-- `<outdir>/<pulsar>/<pulsar>.txt` — MJD, nulling fraction, uncertainties, S/N proxy, Wang NF
-- `<outdir>/<pulsar>/<pulsar>_consecutive_nulls_and_non.txt` — null and non-null run lengths
+
+**`<outdir>/<pulsar>/<pulsar>.txt`** — one row per quantity, one column per observation (sorted chronologically by MJD):
+
+| Row | Quantity | Description |
+|-----|----------|-------------|
+| 1 | MJD | Modified Julian Date of the observation |
+| 2 | Bayesian NF | Bayesian nulling fraction (posterior median) |
+| 3 | NF lower uncertainty | Lower uncertainty on the Bayesian NF |
+| 4 | NF upper uncertainty | Upper uncertainty on the Bayesian NF |
+| 5 | S/N proxy | Signal-to-noise proxy for the observation |
+| 6 | Number of profiles | Number of single pulses in the observation |
+| 7 | Wang NF | Wang method nulling fraction |
+| 8 | Max consecutive nulls | Longest consecutive null run in the observation |
+
+**`<outdir>/<pulsar>/<pulsar>_consecutive_nulls_and_non.txt`** — null and non-null run lengths
