@@ -1,6 +1,6 @@
 # Pulsar Nulling Fraction Calculator
 
-A tool for measuring the **nulling fraction** of radio pulsars from single-pulse data. Nulling is a phenomenon where a pulsar intermittently switches its radio emission off for one or more pulse periods. This code measures what fraction of pulses are "nulls" using two independent methods, described in detail in Brook et al. (2026):
+A tool for measuring the **nulling fraction** of radio pulsars from single-pulse data. Nulling is a phenomenon where a pulsar intermittently switches its radio emission off for one or more pulse periods. This code measures what fraction of pulses are "nulls" using two independent methods, described in detail in [Brook et al. (2026)](https://arxiv.org/abs/2602.22956):
 
 1. **Histogram Scaling (HS) method** (§3.2) — For each observation, separate histograms of the on-pulse and off-pulse total flux densities are constructed. A scaled copy of the off-pulse histogram is subtracted from the on-pulse histogram, with the scale factor chosen so that the sum of difference counts in bins with flux density below zero is minimised to zero (i.e. no excess of apparent nulls). The nulling fraction is then simply this scale factor, with a fitting uncertainty of √n_p / N, where n_p = NF × N is the number of null pulses and N is the total number of rotations. A limitation of this method is the assumption that all pulses with negative flux density are genuine nulls; in low-S/N data, non-null pulses can scatter below zero, leading to a potential underestimate of the nulling fraction.
 
@@ -50,6 +50,16 @@ Results and plots will be written to `pulsar_results/J1559-5545/`.
 | `-outdir`  | Directory where output plots and files are saved      | `pulsar_results/` |
 | `-datadir` | Directory containing the pulsar data subdirectories   | `pulsar_data/`  |
 
+## On-pulse and off-pulse windows
+
+The on-pulse and off-pulse windows are the two most important parameters to set correctly, as everything in the analysis depends on them.
+
+Each pulse period is divided into phase bins (e.g. 512 bins covering one full rotation). The pulsar's radio emission only appears in a small range of these bins — the **on-pulse window**, defined by `-fb` (first bin) and `-lb` (last bin). The total flux density summed across these bins for each pulse is the quantity used to measure the nulling fraction. You should inspect the mean pulse profile (visible in `*_waterfall_mean.png`) and choose `-fb` and `-lb` to tightly bracket the emission peak.
+
+The **off-pulse window** is a region of the same width as the on-pulse window, placed a quarter of a period away (i.e. starting at bin `-fb + N/4`, where N is the total number of bins). This region should contain no real emission and is used to characterise the baseline radiometer noise. It provides the reference noise distribution that both the HS and BPE methods use to identify null pulses. The off-pulse window is set automatically by the code — you do not need to specify it.
+
+The green dashed lines in the `*_waterfall_mean.png` plot mark the on-pulse window, and the orange dashed lines mark the off-pulse window, so you can verify both are positioned correctly.
+
 ## Input data format
 
 Each observation is a plain ASCII text file. Files can have any name and should be placed in `pulsar_data/<pulsar_name>/`.
@@ -74,8 +84,6 @@ The remaining lines are two-column rows giving the phase bin number and flux den
 ...
 ```
 
-![Data format example](data_format_example.png)
-
 All files in `pulsar_data/<pulsar_name>/` are processed, so ensure the directory contains only observation data files.
 
 ## Reproducibility
@@ -90,9 +98,19 @@ For each observation file, seven diagnostic plots are saved to `<outdir>/<pulsar
 
 **`*_waterfall_mean.png`** — Two-panel figure. The upper panel is a waterfall plot showing the flux density of every individual pulse as a function of phase bin (x-axis) and pulse number (y-axis), giving a visual overview of the nulling behaviour across the observation. The lower panel shows the normalised mean pulse profile, with green dashed lines marking the on-pulse window and orange dashed lines marking the off-pulse window used for baseline estimation.
 
-**`*_flux.png`** — Scatter plot of the summed on-pulse window flux density for each individual pulse, plotted against pulse number. Useful for seeing the variability of emission from pulse to pulse and identifying extended null or burst periods.
+![Waterfall mean example](waterfall_mean_example.png)
+
+**`*_flux.png`** — Scatter plot of the summed on-pulse window flux density for each individual pulse, plotted against pulse number. Useful for seeing the variability of emission from pulse to pulse and identifying extended null or burst periods. The blue dashed line marks the mean off-pulse flux density plus 1 standard deviation, used as the threshold for classifying a pulse as a null or an emission. The orange dashed line marks the mean plus 2 standard deviations, indicating more confidently detected emission pulses.
 
 ![Flux density example](flux_example.png)
+
+**`*_corner_plot.png`** — MCMC posterior corner plot showing the joint and marginal distributions of the three fitted parameters: the number of null pulses, μ (the mean of the natural logarithm of the on-pulse flux densities for non-null pulses — i.e. the location parameter of the lognormal distribution), and σ (the standard deviation of the natural logarithm of the on-pulse flux densities for non-null pulses — i.e. the width of the lognormal distribution). Narrow, well-separated posteriors indicate a reliable fit; broad or multimodal distributions suggest the data quality or nulling fraction may make the parameters hard to constrain.
+
+![Corner plot example](corner_plot_example.png)
+
+**`*_bayes_fit.png`** — Histogram of on-pulse window flux density with the BPE model overlaid. The blue curve is the null component (Gaussian noise), the red curve is the emission component (lognormal convolved with the noise distribution), and the dashed black curve is their sum. A good fit indicates the MCMC has converged on a physically reasonable solution.
+
+![Bayes fit example](bayes_fit_example.png)
 
 **`*_hist_before.png`** — Overlapping histograms of the on-pulse (green) and off-pulse (orange) flux density distributions before any scaling is applied. Shows the raw separation between the null and emission populations.
 
@@ -106,30 +124,22 @@ For each observation file, seven diagnostic plots are saved to `<outdir>/<pulsar
 
 ![Histogram after scaling example](hist_scaled_example.png)
 
-**`*_bayes_fit.png`** — Histogram of on-pulse window flux density with the BPE model overlaid. The blue curve is the null component (Gaussian noise), the red curve is the emission component (lognormal convolved with the noise distribution), and the dashed black curve is their sum. A good fit indicates the MCMC has converged on a physically reasonable solution.
-
-![Bayes fit example](bayes_fit_example.png)
-
-**`*_corner_plot.png`** — MCMC posterior corner plot showing the joint and marginal distributions of the three fitted parameters: number of nulls, μ (lognormal mean of the emission component), and σ (lognormal width). Used to assess sampler convergence and correlations between parameters.
-
-![Corner plot example](corner_plot_example.png)
-
 ### Summary output files
 
-**`<outdir>/<pulsar>/<pulsar>.txt`** — one row per quantity, one column per observation (sorted chronologically by MJD):
+**`<outdir>/<pulsar>/<pulsar>.txt`** — This is the main results file. It contains one row per quantity and one column per observation, sorted chronologically by MJD. Each column therefore represents one observation, and each row represents a different measured quantity. This file is read directly by `plot_nf_evolution.ipynb` to produce the NF evolution plot.
 
 | Row | Quantity | Description |
 |-----|----------|-------------|
 | 1 | MJD | Modified Julian Date of the observation |
-| 2 | Bayesian NF | Bayesian nulling fraction (posterior median) |
-| 3 | NF lower uncertainty | Lower uncertainty on the Bayesian NF |
-| 4 | NF upper uncertainty | Upper uncertainty on the Bayesian NF |
-| 5 | S/N proxy | Signal-to-noise proxy for the observation |
-| 6 | Number of profiles | Number of single pulses in the observation |
-| 7 | HS NF | Histogram Scaling nulling fraction |
-| 8 | Max consecutive nulls | Longest consecutive null run in the observation |
+| 2 | BPE nulling fraction | The nulling fraction measured by the Bayesian Parameter Estimation method — the fraction of pulses that are nulls, as the median of the MCMC posterior distribution. A value of 0 means no nulling was detected; a value of 1 means the pulsar was nulling for the entire observation. |
+| 3 | BPE lower uncertainty | The downward 1σ uncertainty on the BPE nulling fraction, combining the MCMC fitting uncertainty and the binomial sampling uncertainty. |
+| 4 | BPE upper uncertainty | The upward 1σ uncertainty on the BPE nulling fraction, combining the MCMC fitting uncertainty and the binomial sampling uncertainty. |
+| 5 | S/N proxy | A signal-to-noise proxy for the observation, estimated as the median peak flux density of the brightest non-null pulses. A useful indicator of data quality — low values suggest the observation may be too noisy for reliable NF measurement. |
+| 6 | Number of profiles | The total number of individual pulses (rotations) in the observation. |
+| 7 | HS nulling fraction | The nulling fraction measured by the Histogram Scaling method. |
+| 8 | Max consecutive nulls | The longest consecutive run of null pulses found in the observation. |
 
-**`<outdir>/<pulsar>/<pulsar>_consecutive_nulls_and_non.txt`** — null and non-null run lengths
+**`<outdir>/<pulsar>/<pulsar>_consecutive_nulls_and_non.txt`** — Two lines listing the lengths of every consecutive null train and every consecutive emission train across all observations. Used internally by `plot_nf_evolution.ipynb` to estimate the binomial sampling uncertainty.
 
 ## Visualising NF evolution: `plot_nf_evolution.ipynb`
 

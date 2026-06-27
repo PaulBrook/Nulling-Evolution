@@ -393,7 +393,7 @@ for file in os.listdir(datadir):
         plt.rcParams['xtick.labelsize'] = 10
         plt.rcParams['ytick.labelsize'] = 10
         plt.rcParams['axes.labelsize'] = 14
-        corner(sampler.flatchain, 100, title='' ,labels=["Number of Nulls",r"$\mu$\nOn-Pulses",r"\sigma\nOn-Pulses"])
+        corner(sampler.flatchain, 100, title='' ,labels=["Number of Nulls", "$\\mu$\nOn-Pulses", "$\\sigma$\nOn-Pulses"])
         plt.savefig(f'{output_dir}/{file}_corner_plot.png')            
         plt.close()
 
@@ -450,10 +450,10 @@ for file in os.listdir(datadir):
 
 zipped = list(sorted(zip(mjd_list, nf_list, nf_lower_unc, nf_upper_unc, sn_proxy_list, n_prof_list, hs_nf_list, max_nulls)))
 
-if len(mjd_list) == len(nf_list) == len(nf_lower_unc) == len(nf_upper_unc) == len(sn_proxy_list) == len(n_prof_list) == len(hs_nf_list) == len(max_nulls) == len(all_nulls) == len(all_non_nulls):
-    print('All lists are of equal length.')
-else:
-    print('LISTS ARE NOT ALL OF EQUAL LENGTH!')
+if len(mjd_list) != len(nf_list) or len(mjd_list) != len(nf_lower_unc) or len(mjd_list) != len(nf_upper_unc) or len(mjd_list) != len(sn_proxy_list) or len(mjd_list) != len(n_prof_list) or len(mjd_list) != len(hs_nf_list) or len(mjd_list) != len(max_nulls) or len(mjd_list) != len(all_nulls) or len(mjd_list) != len(all_non_nulls):
+    raise RuntimeError('Output lists are not all of equal length — one or more observations may have failed to process.')
+
+print(f'All {file_tot} observations processed successfully.')
 
 ### SAVE RESULTS
 
