@@ -145,6 +145,12 @@ For each observation file, seven diagnostic plots are saved to `<outdir>/<pulsar
 
 After running `nf_calculator.py` across all observations of a pulsar, the Jupyter notebook `plot_nf_evolution.ipynb` reads the summary outputs and produces a single diagnostic figure showing how the nulling fraction evolves over time.
 
+Open the notebook with:
+
+```bash
+jupyter lab plot_nf_evolution.ipynb
+```
+
 Set the pulsar name and results directory at the top of the notebook:
 
 ```python
