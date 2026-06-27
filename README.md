@@ -19,6 +19,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+If using the notebook, also register the environment as a Jupyter kernel:
+
+```bash
+python3 -m ipykernel install --user --name .venv --display-name "Nulling Evolution"
+```
+
 ## Running with the example data
 
 Example data for pulsar **J1559-5545** is included in `pulsar_data/J1559-5545/`. A ready-made bash script is provided to run the calculator on this data:
