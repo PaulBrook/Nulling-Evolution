@@ -172,7 +172,20 @@ The notebook then:
 | Third | BPE nulling fraction vs. time, with linear fit and 2σ band |
 | Bottom | HS nulling fraction vs. time, with linear fit and 2σ band |
 
-The x-axis shows Modified Julian Date (bottom) and calendar year (top). The red shaded region in each NF panel is the 2σ confidence band derived from the parameter covariance matrix of the linear fit.
+The x-axis shows Modified Julian Date (bottom) and calendar year (top). The grey shaded region in each NF panel is the 2σ confidence band derived from the parameter covariance matrix of the linear fit.
+
+**Example output for J1559-5545:**
+
+![NF evolution plot for J1559-5545](J1559-5545_nf_evolution.png)
+
+The four panels show (top to bottom):
+
+- **No. of Rotations** — the number of individual pulses in each observation. Variations here reflect different observation lengths and help flag whether data quality differences may be driving apparent NF changes.
+- **S/N Proxy** — a signal-to-noise proxy (median peak flux density of the brightest non-null pulses) per observation. Low values indicate noisy observations where NF measurements are less reliable.
+- **Nulling Fraction (Bayesian / BPE method)** — the nulling fraction per observation measured by the Bayesian Parameter Estimation method, with combined measurement and binomial uncertainties shown as error bars. The dashed line is the weighted linear best fit; the grey band is the 2σ covariance-based confidence interval on that fit.
+- **Nulling Fraction (Histogram Scaling method)** — the same time series measured independently using the Histogram Scaling method. Comparing the two panels gives a sense of how consistent the two estimators are across the observing campaign.
+
+> **Note:** J1559-5545 was one of the pulsars analysed in [Brook et al. (2026)](https://arxiv.org/abs/2602.22956). The plot above looks different from the figure in that paper because the observations for this pulsar had baseline stability issues that required additional pre-processing before the analysis. The data included here has not had that extra processing applied, so this example is intended purely to demonstrate how the code works rather than to reproduce the published result.
 
 ## Limitations
 
