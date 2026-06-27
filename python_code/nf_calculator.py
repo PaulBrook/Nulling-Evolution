@@ -6,7 +6,6 @@
 
 import numpy as np
 import matplotlib.pylab as plt
-import glob
 import os
 import argparse
 from scipy import signal
@@ -23,7 +22,6 @@ parser.add_argument("-fb", required = True, type = int, help = "First bin of pul
 parser.add_argument("-lb", required = True, type = int, help = "Last bin of pulse window")
 parser.add_argument("-outdir", required = True, help = "Directory for output plots and files")
 parser.add_argument("-datadir", required = True, help = "Directory where the pulsar data is found")
-parser.add_argument("-bins", required = True, type = int, help = "Number of phase bins")
 
 ## LOAD THE ARGUMENTS
 
@@ -45,7 +43,7 @@ if not os.path.exists(output_dir):
 
 mjd_list = []
 nf_list = []
-wang_nf_list = []
+hs_nf_list = []
 nf_upper_unc = []
 nf_lower_unc = []
 sn_proxy_list = []
@@ -57,20 +55,13 @@ n_prof_list = []
 ### NUMBER OF OBSERVATIONS
 
 datadir = f'{args.datadir}{p_name}/'
-file_tot = len(glob.glob("{}*.sp.asc".format(datadir)))
+file_tot = len(os.listdir(datadir))
 print('There are {} observations in this data set.'.format(file_tot))
 
 ### DEFINING THE ON-PULSE WINDOW AND OFF PULSE WINDOW
 
 on_window_begin = args.fb
 on_window_end = args.lb
-
-no_bins = args.bins
-
-off_window_begin = on_window_begin + int(no_bins/4.)
-off_window_end = on_window_end + int(no_bins/4.)
-
-windows = [on_window_begin,on_window_end,off_window_begin,off_window_end]
 
 ### CALCULATE NULLING FRACTION
 
@@ -98,12 +89,22 @@ for file in os.listdir(datadir):
         ### ADD MJDS TO FILE
         
         f = open(obs_file, 'r')
-        mjd_list.append(int(f.readline()[1:7]))
+        mjd_list.append(int(float(f.readline().lstrip('#'))))
         print('MJD:',mjd_list[-1],'\n')
         f.close()
 
-        ### LOAD AND RESHAPE DATE AND RECORD NUMBER OF PROFILES                                                                                                                                                                                     
+        ### LOAD DATA AND INFER NUMBER OF BINS FROM BIN COUNTER RESET
         rawdata = np.loadtxt(obs_file)
+        bin_nums = rawdata[:, 0]
+        resets = np.where((bin_nums[1:] == 1) & (bin_nums[:-1] > 1))[0]
+        no_bins = int(resets[0] + 1) if len(resets) > 0 else len(bin_nums)
+        print(f'Number of phase bins inferred from data: {no_bins}')
+
+        off_window_begin = on_window_begin + int(no_bins/4.)
+        off_window_end = on_window_end + int(no_bins/4.)
+        windows = [on_window_begin, on_window_end, off_window_begin, off_window_end]
+
+        ### RESHAPE INTO (n_pulses, n_bins)
         print('Data shape before reshape:',rawdata.shape)
         data = np.reshape(rawdata[:,1],(int(rawdata.shape[0]/no_bins),no_bins))
         print('Data shape after reshape:',data.shape)
@@ -119,8 +120,8 @@ for file in os.listdir(datadir):
 
         ### MOVE PEAK TO BIN 128                                                                                                                                                             
         peak_bin = np.argmax(mean)
-        data = np.roll(data,128-peak_bin,axis=1)
-        mean = np.roll(mean,128-peak_bin,axis=0)
+        data = np.roll(data,int(no_bins/4)-peak_bin,axis=1)
+        mean = np.roll(mean,int(no_bins/4)-peak_bin,axis=0)
             
         ### BASELINE BASED ON OFF WINDOW
 
@@ -261,12 +262,10 @@ for file in os.listdir(datadir):
         all_nulls.append(null_count_obs) # trying to say all the null trains. Maybe an average of all will give a better idea of trials?
         all_non_nulls.append(non_null_count_obs) # trying to say all the null trains. Maybe an average of all will give a better idea of trials?
         print(f'Max nulls: {max_nulls[-1]}')
-        print(f'All nulls: {all_nulls[-1]}')
-        print(f'All non-nulls: {all_non_nulls[-1]}')
         print('\n\n\n')
             
         ########################################################
-        ################# WANG METHOD ##########################
+        ############## HISTOGRAM SCALING METHOD ################
         ########################################################
 
         ### SET UP THE HISTOGRAM
@@ -303,17 +302,17 @@ for file in os.listdir(datadir):
         
         ### CALCULATE SCALING
         
-        best_scaling = nff.wang(hy_on,hy_off)
+        best_scaling = nff.histogram_scaling(hy_on,hy_off)
 
         ### PRODUCE A WARNING IF THERE WERE NO NEGATIVE ON-PULSE_WINDOW VALUES AND SET THE NULLING FRACTION TO 0.0
-        
+
         if isinstance(best_scaling, str):
             print(best_scaling)
-            wang_nf = 0.0
+            hs_nf = 0.0
         else:
-            wang_nf = 1./best_scaling
-            
-        wang_nf_list.append(wang_nf)
+            hs_nf = 1./best_scaling
+
+        hs_nf_list.append(hs_nf)
             
         ### PRODUCE A POST-SCALING HISTOGRAM (UNLESS THERE ARE NO NEGATIVE ON-PULSE-WINDOW VALUES)
         
@@ -325,12 +324,12 @@ for file in os.listdir(datadir):
                 hy_off = hy_off[:-1]
                 hy_on = hy_on[:-1]
                 
-            wang_x = np.arange(0,hy_off.shape[0]+1)
+            hs_x = np.arange(0,hy_off.shape[0]+1)
             hy_off = np.append(hy_off,0)
             hy_on = np.append(hy_on,0)
 
             # Show scaled plot
-            nff.scaled_hist(wang_x, hy_off, hy_on*best_scaling, best_scaling)
+            nff.scaled_hist(hs_x, hy_off, hy_on*best_scaling, best_scaling)
             plt.savefig(f'{output_dir}/{file}_hist_scaled.png')
             plt.close()
             
@@ -340,19 +339,19 @@ for file in os.listdir(datadir):
         ################# BAYESIAN METHOD #######################
         #########################################################
 
-        ### STARTING POINT FOR THE SAMPLER IS TAKEN FROM THE WANG NF RESULTS.
+        ### STARTING POINT FOR THE SAMPLER IS TAKEN FROM THE HS NF RESULTS.
         ### BUT WE DON'T WANT TO START RIGHT AT 0.0 OR 1.0
-        
-        if wang_nf == 1.0:
-            start_from_wang_nf = 0.9
-        elif wang_nf == 0.0:
-            start_from_wang_nf = 0.1
-        else:
-            start_from_wang_nf = wang_nf
-                
-        Nexp = start_from_wang_nf * n_prof
 
-        print(f'Number of nulls from Wang results: {Nexp}')
+        if hs_nf == 1.0:
+            start_from_hs_nf = 0.9
+        elif hs_nf == 0.0:
+            start_from_hs_nf = 0.1
+        else:
+            start_from_hs_nf = hs_nf
+
+        Nexp = start_from_hs_nf * n_prof
+
+        print(f'Number of nulls from HS results: {Nexp}')
         print('\n')
         
         ### ESTIMATE OF THE MEAN AND STD OF THE ON-PULSE DATA
@@ -435,9 +434,9 @@ for file in os.listdir(datadir):
             
         print('\n\n')
             
-        print("                                   +{:.5f}".format(np.sqrt(wang_nf_list[-1]*n_prof_list[-1]) / n_prof_list[-1]))
-        print('The Wang nulling fraction: {:.5f}'.format(wang_nf))            
-        print("                                   +{:.5f}".format(np.sqrt(wang_nf_list[-1]*n_prof_list[-1]) / n_prof_list[-1]))
+        print("                                   +{:.5f}".format(np.sqrt(hs_nf_list[-1]*n_prof_list[-1]) / n_prof_list[-1]))
+        print('The HS nulling fraction: {:.5f}'.format(hs_nf))
+        print("                                   +{:.5f}".format(np.sqrt(hs_nf_list[-1]*n_prof_list[-1]) / n_prof_list[-1]))
         print('\n')
         print("                                   +{:.5f}".format((up-med)/n_prof))
         print("Bayesian nulling fraction: {:.5f}".format(med/n_prof))
@@ -449,9 +448,9 @@ for file in os.listdir(datadir):
 
 ### ZIP LISTS OF RESULTS TOGETHER AND ORDER THEM CHRONOLOGICALLY:
 
-zipped = list(sorted(zip(mjd_list, nf_list, nf_lower_unc, nf_upper_unc, sn_proxy_list, n_prof_list, wang_nf_list, max_nulls)))
+zipped = list(sorted(zip(mjd_list, nf_list, nf_lower_unc, nf_upper_unc, sn_proxy_list, n_prof_list, hs_nf_list, max_nulls)))
 
-if len(mjd_list) == len(nf_list) == len(nf_lower_unc) == len(nf_upper_unc) == len(sn_proxy_list) == len(n_prof_list) == len(wang_nf_list) == len(max_nulls) == len(all_nulls) == len(all_non_nulls):
+if len(mjd_list) == len(nf_list) == len(nf_lower_unc) == len(nf_upper_unc) == len(sn_proxy_list) == len(n_prof_list) == len(hs_nf_list) == len(max_nulls) == len(all_nulls) == len(all_non_nulls):
     print('All lists are of equal length.')
 else:
     print('LISTS ARE NOT ALL OF EQUAL LENGTH!')

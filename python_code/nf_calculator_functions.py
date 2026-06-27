@@ -184,12 +184,14 @@ def convolve(params, data, mean_off_window_nulls, std_off_window_nulls):
     
     # do the convolution
 
-    conv_func_y = np.convolve(on_func_y_for_conv,off_func_y_for_conv,mode='full')/(np.sum(on_func_y_for_conv))
+    norm = np.sum(on_func_y_for_conv)
+    conv_func_y = np.convolve(on_func_y_for_conv,off_func_y_for_conv,mode='full') / (norm if norm != 0 else 1)
     
     area_on = np.sum(on_func_y_for_conv)
     area_conv = np.sum(conv_func_y)
-    
-    conv_func_y *= (area_on/area_conv)
+
+    if area_conv != 0:
+        conv_func_y *= (area_on/area_conv)
     
     # pad the on function now so that it can be plotted nicely with off function
     
@@ -214,7 +216,7 @@ def convolve(params, data, mean_off_window_nulls, std_off_window_nulls):
 
     return total_function_x, total_function_y, null_func_y_expanded, conv_func_y
 
-def wang(hist_list_on,hist_list_off):
+def histogram_scaling(hist_list_on,hist_list_off):
     scaling = 1.0
     if len(hist_list_on) == len(hist_list_off):
         pass

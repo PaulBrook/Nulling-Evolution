@@ -7,5 +7,4 @@ python -u "${BASE_DIR}/python_code/nf_calculator.py" \
     -fb 114 \
     -lb 139 \
     -outdir "${BASE_DIR}/pulsar_results/" \
-    -datadir "${BASE_DIR}/pulsar_data/" \
-    -bins 512
+    -datadir "${BASE_DIR}/pulsar_data/"
