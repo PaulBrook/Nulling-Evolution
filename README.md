@@ -176,7 +176,7 @@ The x-axis shows Modified Julian Date (bottom) and calendar year (top). The grey
 
 **Example output for J1559-5545:**
 
-![NF evolution plot for J1559-5545](J1559-5545_nf_evolution.png)
+![NF evolution plot for J1559-5545](images/J1559-5545_nf_evolution.png)
 
 The four panels show (top to bottom):
 
