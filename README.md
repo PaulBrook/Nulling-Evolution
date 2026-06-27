@@ -167,3 +167,21 @@ The notebook then:
 | Bottom | HS nulling fraction vs. time, with linear fit and 2σ band |
 
 The x-axis shows Modified Julian Date (bottom) and calendar year (top). The red shaded region in each NF panel is the 2σ confidence band derived from the parameter covariance matrix of the linear fit.
+
+## Limitations
+
+The following limitations are discussed in detail in §7 of [Brook et al. (2026)](https://arxiv.org/abs/2602.22956) and apply to both the HS and BPE methods implemented here.
+
+**Pulse-profile baseline stability.** Both methods assume a stable, flat baseline within each observation. Noise or instrumental effects that corrupt the baseline — producing a non-Gaussian or offset background — can introduce systematic errors in the inferred NF. Additional baseline-flattening steps beyond standard processing risk distorting the noise statistics and biasing the histograms rather than improving them.
+
+**HS method: sensitivity to negative-tail distortions.** The Histogram Scaling method infers the NF entirely from the negative-flux tail of the on-pulse histogram. Any distortion of the on-pulse noise distribution — whether an excess or a deficit of negative-flux values — directly biases the HS result. The BPE method is considerably more robust to such distortions because it models the full on-pulse flux-density distribution, not just the negative tail.
+
+**Nulls must resemble off-pulse noise.** Both methods operate under the assumption that null pulses within the on-pulse window are statistically indistinguishable from the off-pulse noise. If the emission in the on-pulse window merely drops to a low level rather than switching fully off, the inferred NF will be inaccurate. The validity of this assumption should be checked by inspecting the `*_hist_before.png` and `*_bayes_fit.png` diagnostics.
+
+**Multiple or partial emission components.** If the on-pulse window contains multiple overlapping emission components (e.g. a pulsar with a complex profile), or if only part of the profile nulls rather than the entire emission feature, neither method is optimal. In such cases, the NF reported may reflect the behaviour of one component within the window rather than true whole-pulse nulling.
+
+**BPE method: lognormal emission assumption.** The BPE method models the energy distribution of non-null emission pulses as a lognormal distribution. If the true energy distribution deviates significantly from lognormal — for example in pulsars with unusual emission statistics — the reliability of the BPE NF and its uncertainties may be reduced.
+
+**Low S/N observations.** At low signal-to-noise, emission pulses scatter into the noise and become difficult to distinguish from nulls. Applied to a genuinely non-nulling pulsar observed at low S/N, both methods can return a spuriously non-zero NF. The S/N proxy in the summary output file (row 5) provides a useful indicator of data quality for each observation.
+
+**Interpreting long-term NF gradients.** When using the notebook to fit a linear trend to NF over time, the formal uncertainties on the slope may underestimate the true error budget. Inferred gradients can be sensitive to methodological choices, baseline stability, and modest differences in a small number of individual measurements. Evidence for long-term NF evolution should therefore be treated as tentative unless confirmed across multiple epochs and both estimation methods.
