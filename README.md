@@ -98,31 +98,31 @@ For each observation file, seven diagnostic plots are saved to `<outdir>/<pulsar
 
 **`*_waterfall_mean.png`** — Two-panel figure. The upper panel is a waterfall plot showing the flux density of every individual pulse as a function of phase bin (x-axis) and pulse number (y-axis), giving a visual overview of the nulling behaviour across the observation. The lower panel shows the normalised mean pulse profile, with green dashed lines marking the on-pulse window and orange dashed lines marking the off-pulse window used for baseline estimation.
 
-![Waterfall mean example](waterfall_mean_example.png)
+![Waterfall mean example](images/waterfall_mean_example.png)
 
 **`*_flux.png`** — Scatter plot of the summed on-pulse window flux density for each individual pulse, plotted against pulse number. Useful for seeing the variability of emission from pulse to pulse and identifying extended null or burst periods. The blue dashed line marks the mean off-pulse flux density plus 1 standard deviation, used as the threshold for classifying a pulse as a null or an emission. The orange dashed line marks the mean plus 2 standard deviations, indicating more confidently detected emission pulses.
 
-![Flux density example](flux_example.png)
+![Flux density example](images/flux_example.png)
 
 **`*_corner_plot.png`** — MCMC posterior corner plot showing the joint and marginal distributions of the three fitted parameters: the number of null pulses, μ (the mean of the natural logarithm of the on-pulse flux densities for non-null pulses — i.e. the location parameter of the lognormal distribution), and σ (the standard deviation of the natural logarithm of the on-pulse flux densities for non-null pulses — i.e. the width of the lognormal distribution). Narrow, well-separated posteriors indicate a reliable fit; broad or multimodal distributions suggest the data quality or nulling fraction may make the parameters hard to constrain.
 
-![Corner plot example](corner_plot_example.png)
+![Corner plot example](images/corner_plot_example.png)
 
 **`*_bayes_fit.png`** — Histogram of on-pulse window flux density with the BPE model overlaid. The blue curve is the null component (Gaussian noise), the red curve is the emission component (lognormal convolved with the noise distribution), and the dashed black curve is their sum. A good fit indicates the MCMC has converged on a physically reasonable solution.
 
-![Bayes fit example](bayes_fit_example.png)
+![Bayes fit example](images/bayes_fit_example.png)
 
 **`*_hist_before.png`** — Overlapping histograms of the on-pulse (green) and off-pulse (orange) flux density distributions before any scaling is applied. Shows the raw separation between the null and emission populations.
 
-![Histogram before scaling example](hist_before_example.png)
+![Histogram before scaling example](images/hist_before_example.png)
 
 **`*_hist_neg.png`** — Histograms showing only the negative flux density values from the on-pulse (green) and off-pulse (orange) windows. This is the input used by the Histogram Scaling method — the scale factor is found by matching these negative tails.
 
-![Histogram negative values example](hist_neg_example.png)
+![Histogram negative values example](images/hist_neg_example.png)
 
 **`*_hist_scaled.png`** — Histograms after the HS scaling factor has been applied to the on-pulse data. The negative tails of the two distributions are aligned, demonstrating the fit and the derived nulling fraction.
 
-![Histogram after scaling example](hist_scaled_example.png)
+![Histogram after scaling example](images/hist_scaled_example.png)
 
 ### Summary output files
 
